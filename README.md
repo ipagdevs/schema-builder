@@ -2,7 +2,7 @@
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/ipagdevs/schema-builder.svg?style=flat-square)](https://packagist.org/packages/ipagdevs/schema-builder)
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
-[![Build Status](https://img.shields.io/travis/com/ipagdevs/schema-builder.svg?style=flat-square)](https://travis-ci.com/ipagdevs/schema-builder)
+[![Build Status](https://github.com/ipagdevs/schema-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/ipagdevs/schema-builder/actions/workflows/ci.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/ipagdevs/schema-builder.svg?style=flat-square)](https://packagist.org/packages/ipagdevs/schema-builder)
 
 A powerful and intuitive library for building schema-driven data models in PHP. Validate, parse, and serialize complex data structures with ease, ensuring your data models are robust and reliable.
