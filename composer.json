@@ -1,0 +1,39 @@
+{
+    "name": "ipagdevs/schema-builder",
+    "description": "A powerful library for building schema-driven data models in PHP.",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "IpagDevs\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Vitor Kubinyete",
+            "email": "vitorkubinyete@hotmail.com"
+        },
+        {
+            "name": "Lucas Milhorança",
+            "email": "lucas.milhoranca@ipag.com.br"
+        },
+        {
+            "name": "João Hernandes",
+            "email": "jhernandes@ipag.com.br"
+        }
+    ],
+    "autoload-dev": {
+        "psr-4": {
+            "IpagDevs\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "symfony/polyfill-php81": "^1.28",
+        "symfony/polyfill-php80": "^1.28"
+    },
+    "require-dev": {
+        "symfony/var-dumper": "^5.4",
+        "fakerphp/faker": "^1.23",
+        "phpunit/phpunit": "^9.6",
+        "phpstan/phpstan": "^2.1"
+    }
+}
