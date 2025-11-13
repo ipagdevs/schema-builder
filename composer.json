@@ -2,6 +2,7 @@
     "name": "ipagdevs/schema-builder",
     "description": "A powerful library for building schema-driven data models in PHP.",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "IpagDevs\\": "src/"
