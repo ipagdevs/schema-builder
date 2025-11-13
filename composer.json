@@ -3,6 +3,14 @@
     "description": "A powerful library for building schema-driven data models in PHP.",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "schema",
+        "builder",
+        "data-model",
+        "validation",
+        "ipag"
+    ],
+    "homepage": "https://github.com/ipagdevs/schema-builder",
     "autoload": {
         "psr-4": {
             "IpagDevs\\": "src/"
@@ -28,6 +36,7 @@
         }
     },
     "require": {
+        "php": ">=8.1",
         "symfony/polyfill-php81": "^1.28",
         "symfony/polyfill-php80": "^1.28"
     },
