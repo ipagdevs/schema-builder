@@ -17,6 +17,7 @@ class SchemaAttribute
     protected mixed $default;
     protected bool $hasDefault;
     protected bool $required;
+    protected ?Closure $requiredCheck;
 
     public function __construct(Schema $schema, string $name)
     {
@@ -31,6 +32,7 @@ class SchemaAttribute
         $this->hasDefault = false;
 
         $this->required = false;
+        $this->requiredCheck = null;
     }
 
     public function getName(): string
@@ -84,6 +86,11 @@ class SchemaAttribute
         return $this->hiddenCheck?->__invoke($value, $model) ?? false;
     }
 
+    public function isRequiredIf(mixed $value, Model $model): bool
+    {
+        return $this->requiredCheck?->__invoke($value, $model) ?? false;
+    }
+
     public function hasDefault(): bool
     {
         return $this->hasDefault;
@@ -131,6 +138,17 @@ class SchemaAttribute
         $this->required = $default;
 
         return $this;
+    }
+
+    public function requiredIf(callable $check): self
+    {
+        $this->requiredCheck = $check instanceof Closure ? $check : Closure::fromCallable($check);
+        return $this;
+    }
+
+    public function requiredWhen(string $field, mixed $expectedValue): self
+    {
+        return $this->requiredIf(static fn($value, Model $model) => $model->get($field) === $expectedValue);
     }
 
     public function array(): SchemaArrayAttribute
