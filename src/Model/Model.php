@@ -101,17 +101,33 @@ abstract class Model implements SerializableModelInterface
      */
     public function fill(array $data): static
     {
+        $snapshot = $this->copy();
+        $snapshot->mutators = [];
+
         foreach ($data as $key => $value) {
-            $this->set($key, $value);
+            $snapshot->set($key, $value);
         }
 
-        foreach ($this->schema->getAttributes() as $attr) {
-            if ($attr->isRequired() && !array_key_exists($attr->getName(), $data)) {
+        foreach ($snapshot->schema->getAttributes() as $attr) {
+            /** @var SchemaAttribute $attr */
+            if (
+                ($attr->isRequired() || $attr->isRequiredIf($snapshot->get($attr->getName()), $snapshot))
+                && !array_key_exists($attr->getName(), $data)
+            ) {
                 throw new SchemaAttributeParseException($attr, "Missing required attribute");
             }
         }
 
+        $this->data = $snapshot->data;
+        $this->relations = $snapshot->relations;
+        $this->mutators = $snapshot->mutators;
+
         return $this;
+    }
+
+    public function copy(): static
+    {
+        return clone $this;
     }
 
     public function set(string $attribute, mixed $value): self

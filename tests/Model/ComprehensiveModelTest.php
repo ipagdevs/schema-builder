@@ -2,7 +2,9 @@
 
 namespace IpagDevs\Tests;
 
+use Exception;
 use DateTimeInterface;
+use ReflectionProperty;
 use IpagDevs\Model\Model;
 use IpagDevs\Model\Schema\Schema;
 use IpagDevs\Model\Schema\Mutator;
@@ -89,6 +91,34 @@ class Product extends Model
     }
 }
 
+class UserRegistration extends Model
+{
+    protected function schema(SchemaBuilder $schema): Schema
+    {
+        $schema->string('name')->required();
+        $schema->string('email')->required();
+        $schema->string('user_type')->required();
+        $schema->string('contact_preference')->nullable();
+
+        $schema->string('company_name')
+            ->requiredWhen('user_type', 'business');
+
+        $schema->string('phone')
+            ->requiredWhen('contact_preference', 'phone');
+
+        $schema->string('supervisor_approval')
+            ->requiredIf(function ($value, Model $model) {
+                $budget = $model->get('budget');
+                $userType = $model->get('user_type');
+                return $budget > 10000 && $userType !== 'enterprise';
+            });
+
+        $schema->float('budget')->nullable();
+
+        return $schema->build();
+    }
+}
+
 class ComprehensiveModelTest extends BaseTestCase
 {
     /**
@@ -125,10 +155,186 @@ class ComprehensiveModelTest extends BaseTestCase
 
     protected function tearDown(): void
     {
-        $reflection = new \ReflectionProperty(Model::class, 'globalSchema');
-        $reflection->setAccessible(true);
+        $reflection = new ReflectionProperty(Model::class, 'globalSchema');
         $reflection->setValue(null, []);
         parent::tearDown();
+    }
+
+    public function testRequiredWhenConditionIsTriggeredAndFieldMissing(): void
+    {
+        $this->expectException(SchemaAttributeParseException::class);
+        $this->expectExceptionMessage("Missing required attribute");
+
+        $data = [
+            'name' => 'João',
+            'email' => 'joao@test.com',
+            'user_type' => 'business',
+        ];
+
+        UserRegistration::parse($data);
+    }
+
+    public function testRequiredWhenConditionNotTriggeredAllowsMissingField(): void
+    {
+        $data = [
+            'name' => 'Maria',
+            'email' => 'maria@test.com',
+            'user_type' => 'personal',
+        ];
+
+        $user = UserRegistration::parse($data);
+
+        $this->assertNull($user->get('company_name'));
+    }
+
+    public function testPhoneIsRequiredWhenContactPreferenceIsPhone(): void
+    {
+        $data = [
+            'name' => 'Ana',
+            'email' => 'ana@test.com',
+            'user_type' => 'personal',
+            'contact_preference' => 'phone',
+            'phone' => '11999999999'
+        ];
+
+        $user = UserRegistration::parse($data);
+
+        $this->assertSame('11999999999', $user->get('phone'));
+    }
+
+    public function testMissingPhoneThrowsWhenConditionIsTriggered(): void
+    {
+        $this->expectException(SchemaAttributeParseException::class);
+        $this->expectExceptionMessage("Missing required attribute");
+
+        $data = [
+            'name' => 'Ana',
+            'email' => 'ana@test.com',
+            'user_type' => 'personal',
+            'contact_preference' => 'phone',
+        ];
+
+        UserRegistration::parse($data);
+    }
+
+    public function testPhoneNotRequiredWhenConditionIsNotMet(): void
+    {
+        $data = [
+            'name' => 'Ana',
+            'email' => 'ana@test.com',
+            'user_type' => 'personal',
+            'contact_preference' => 'email',
+        ];
+
+        $user = UserRegistration::parse($data);
+        $this->assertNull($user->get('phone'));
+    }
+
+    public function testSupervisorApprovalNotRequiredWhenBudgetLow(): void
+    {
+        $data = [
+            'name' => 'Carlos',
+            'email' => 'carlos@test.com',
+            'user_type' => 'business',
+            'budget' => 5000,
+            'company_name' => 'Negócios SA'
+        ];
+
+        $user = UserRegistration::parse($data);
+
+        $this->assertNull($user->get('supervisor_approval'));
+    }
+    public function testSupervisorApprovalNotRequiredForEnterpriseUsers(): void
+    {
+        $data = [
+            'name' => 'CEO',
+            'email' => 'ceo@test.com',
+            'user_type' => 'enterprise',
+            'budget' => 30000
+        ];
+
+        $user = UserRegistration::parse($data);
+
+        $this->assertNull($user->get('supervisor_approval'));
+    }
+
+    public function testSupervisorApprovalRequiredWhenBudgetHighAndUserNotEnterprise(): void
+    {
+        $this->expectException(SchemaAttributeParseException::class);
+        $this->expectExceptionMessage("Missing required attribute");
+
+        $data = [
+            'name' => 'Gerente',
+            'email' => 'gerente@test.com',
+            'user_type' => 'business',
+            'budget' => 20000,
+        ];
+
+        UserRegistration::parse($data);
+    }
+    public function testSupervisorApprovalIsAcceptedWhenProvided(): void
+    {
+        $data = [
+            'name' => 'Gerente',
+            'email' => 'gerente@test.com',
+            'user_type' => 'business',
+            'budget' => 20000,
+            'supervisor_approval' => 'Aprovado por João',
+            'company_name' => 'Negócios SA'
+        ];
+
+        $user = UserRegistration::parse($data);
+
+        $this->assertSame('Aprovado por João', $user->get('supervisor_approval'));
+    }
+    public function testRequiredIfFailsWhenValueIsExplicitNull(): void
+    {
+        $this->expectException(SchemaAttributeParseException::class);
+
+        $data = [
+            'name' => 'Pedro',
+            'email' => 'pedro@test.com',
+            'user_type' => 'business',
+            'budget' => 15000,
+            'supervisor_approval' => null
+        ];
+
+        UserRegistration::parse($data);
+    }
+
+    public function testFillUsesSnapshotAndDoesNotModifyOriginalOnFailure(): void
+    {
+        $instance = new class extends Model {
+            protected function schema(SchemaBuilder $schema): Schema
+            {
+                $schema->int('id')->required();
+                $schema->string('name')->between(3, 10)->required();
+                return $schema->build();
+            }
+        };
+
+        $class = $instance::class;
+
+        $model = $class::parse([
+            'id' => 1,
+            'name' => 'ValidName'
+        ]);
+
+        $this->assertSame(1, $model->get('id'));
+        $this->assertSame('ValidName', $model->get('name'));
+
+        $this->expectException(SchemaAttributeParseException::class);
+
+        try {
+            $model->fill([
+                'id' => 2,
+            ]);
+        } catch (Exception $e) {
+            $this->assertSame(1, $model->get('id'));
+            $this->assertSame('ValidName', $model->get('name'));
+
+            throw $e;
+        }
     }
 
     public function testModelHiddenIf(): void
@@ -289,12 +495,20 @@ class ComprehensiveModelTest extends BaseTestCase
     {
         $highPriceData = $this->fullProductData;
         $product1 = Product::parse($highPriceData);
-        $this->assertArrayNotHasKey('promo_code', $product1->jsonSerialize(), "Promo code should be hidden for high-priced items.");
+        $this->assertArrayNotHasKey(
+            'promo_code',
+            $product1->jsonSerialize(),
+            "Promo code should be hidden for high-priced items."
+        );
 
         $lowPriceData = $this->fullProductData;
         $lowPriceData['price'] = 50.00;
         $product2 = Product::parse($lowPriceData);
-        $this->assertArrayHasKey('promo_code', $product2->jsonSerialize(), "Promo code should be visible for low-priced items.");
+        $this->assertArrayHasKey(
+            'promo_code',
+            $product2->jsonSerialize(),
+            "Promo code should be visible for low-priced items."
+        );
         $this->assertSame('SAVE10', $product2->jsonSerialize()['promo_code']);
     }
 
